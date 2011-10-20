@@ -33,14 +33,14 @@ it doesn't exceed some looser numbers.
     check_riak.py -H localhost -p 8098 --95th 15,25,5,10 \
         --99th 50,100,25,50
 
-Finally, you can have this script also monitor the size of the ring
-membership. This can be a simple way to alert if you lose more nodes
-than you are comfortable with:
+Finally, you can have this script also monitor how many nodes are
+connected to this one. This can be a simple way to alert if you lose
+more nodes than you are comfortable with:
 
-    check_riak.py -H localhost -p 8098 --ring 4,3
+    check_riak.py -H localhost -p 8098 --nodes 4,3
 
 The values here are "W,C" which are the thresholds to warn/go critical
-at. These values must be exceeded (the current ring member count must
+at. These values must be exceeded (the current connected node count must
 fall below them) before they fire. Therefore, if you have 5 nodes in
 your cluster and you want to warn if you lose any, set W to 5. "Warn if
 this goes below 5."
@@ -88,8 +88,8 @@ def main(args):
                       help='"PW,PC,GW,GC" values for mean percentile data')
     parser.add_option('--median', dest='tmedian', metavar='THRESHOLDS',
                       help='"PW,PC,GW,GC" values for median percentile data')
-    parser.add_option('--ring', dest='tring', metavar='RING_THRESHOLDS',
-                      help='"W,C" format for ring member thresholds')
+    parser.add_option('--nodes', dest='tnodes', metavar='NODE_THRESHOLDS',
+                      help='"W,C" format for connected node thresholds')
     (options, args) = parser.parse_args()
 
     types = (('t95', '95'), ('t99', '99'), ('t100', '100'),
@@ -98,8 +98,8 @@ def main(args):
         val = getattr(options, optname, None)
         if val is not None and not re.match(r'^\d+,\d+,\d+,\d+$', val):
             parser.error('Thresholds must be of the format "PW,PC,GW,GC".')
-    if options.tring and not re.match(r'^\d+,\d+$', options.tring):
-        parser.error('Ring threshold must be of the format "W,C".')
+    if options.tnodes and not re.match(r'^\d+,\d+$', options.tnodes):
+        parser.error('Connected node threshold must be of the format "W,C".')
 
     try:
         req = urlopen("http://%s:%d/stats" % (options.host, options.port))
@@ -129,19 +129,19 @@ def main(args):
         check('node_get_fsm_time_%s' % metricname, gw, gc)
         check('node_put_fsm_time_%s' % metricname, pw, pc)
 
-    val = getattr(options, 'tring', None)
+    val = getattr(options, 'tnodes', None)
     if val is not None:
         rw, rc = [int(x) for x in val.split(',', 2)]
-        if 'ring_members' in obj:
-            ring_size = len(obj['ring_members'])
-            if ring_size < rc:
-                crit.append('ring size: %d members (<%d)' % (ring_size, rc))
-            elif ring_size < rw:
-                warn.append('ring size: %d members (<%d)' % (ring_size, rw))
+        if 'connected_nodes' in obj:
+            conn_nodes = len(obj['connected_nodes'])
+            if conn_nodes < rc:
+                crit.append('nodes: %d connected (<%d)' % (conn_nodes, rc))
+            elif conn_nodes < rw:
+                warn.append('nodes: %d connected (<%d)' % (conn_nodes, rw))
             else:
-                ok.append('ring size: %d members' % ring_size)
+                ok.append('nodes: %d connected' % conn_nodes)
         else:
-            crit.append('ring size: unable to determine member count')
+            crit.append('nodes: unable to determine connected nodes')
 
     if len(crit) > 0:
         return critical(', '.join(crit))
