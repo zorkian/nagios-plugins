@@ -1,0 +1,29 @@
+nagios-plugins
+==============
+:doctype: manpage  
+
+
+DESCRIPTION
+-----------
+This repository contains various Nagios plugins that I've written over
+time. These are all available under the same license (see the LICENSE
+file). They cover a range of functions and you probably won't need all
+of them, but hopefully some of them will be useful.
+
+If it turns out that you do like and use these, please drop me an email
+at mark@qq.is and just let me know. It's purely voluntary but it's
+always good to hear that people are finding things useful.
+
+
+BUGS
+----
+None known. They certainly exist. Please submit bug reports -- you can
+use GitHub here or you can email me.
+
+
+ACKNOWLEDGEMENTS
+----------------
+Most of these have been written while woking for StumbleUpon and
+Bump Technologies, two great companies that both support open source
+development and have been kind enough to allow me to release these
+tools.
