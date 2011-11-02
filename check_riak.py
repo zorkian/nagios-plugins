@@ -33,6 +33,17 @@ it doesn't exceed some looser numbers.
     check_riak.py -H localhost -p 8098 --95th 15,25,5,10 \
         --99th 50,100,25,50
 
+You can also monitor your sibling count and object sizes in the same way
+as the latency:
+
+    check_riak.py -H localhost -p 8098 --95th-siblings 3,6
+
+    check_riak.py -H localhost -p 8098 --95th-objsize 150000,600000
+
+These are "W,C" values. If they're exceeded, this check will go warning
+or critical for those items. This also supports 99th, 100th, mean, and
+median just like the latency checks.
+
 Finally, you can have this script also monitor how many nodes are
 connected to this one. This can be a simple way to alert if you lose
 more nodes than you are comfortable with:
@@ -88,16 +99,41 @@ def main(args):
                       help='"PW,PC,GW,GC" values for mean percentile data')
     parser.add_option('--median', dest='tmedian', metavar='THRESHOLDS',
                       help='"PW,PC,GW,GC" values for median percentile data')
+    parser.add_option('--95th-objsize', dest='o95', metavar='THRESHOLDS',
+                      help='"W,C" values for 95th percentile data')
+    parser.add_option('--99th-objsize', dest='o99', metavar='THRESHOLDS',
+                      help='"W,C" values for 99th percentile data')
+    parser.add_option('--100th-objsize', dest='o100', metavar='THRESHOLDS',
+                      help='"W,C" values for 100th percentile data')
+    parser.add_option('--mean-objsize', dest='omean', metavar='THRESHOLDS',
+                      help='"W,C" values for mean percentile data')
+    parser.add_option('--median-objsize', dest='omedian', metavar='THRESHOLDS',
+                      help='"W,C" values for median percentile data')
+    parser.add_option('--95th-siblings', dest='s95', metavar='THRESHOLDS',
+                      help='"W,C" values for 95th percentile data')
+    parser.add_option('--99th-siblings', dest='s99', metavar='THRESHOLDS',
+                      help='"W,C" values for 99th percentile data')
+    parser.add_option('--100th-siblings', dest='s100', metavar='THRESHOLDS',
+                      help='"W,C" values for 100th percentile data')
+    parser.add_option('--mean-siblings', dest='smean', metavar='THRESHOLDS',
+                      help='"W,C" values for mean percentile data')
+    parser.add_option('--median-siblings', dest='smedian', metavar='THRESHOLDS',
+                      help='"W,C" values for median percentile data')
     parser.add_option('--nodes', dest='tnodes', metavar='NODE_THRESHOLDS',
                       help='"W,C" format for connected node thresholds')
     (options, args) = parser.parse_args()
 
-    types = (('t95', '95'), ('t99', '99'), ('t100', '100'),
-             ('tmedian', 'median'), ('tmean', 'mean'))
-    for optname in [v[0] for v in types]:
-        val = getattr(options, optname, None)
+    types = ('95', '99', '100', 'mean', 'median')
+    for optname in types:
+        val = getattr(options, 't%s' % optname, None)
         if val is not None and not re.match(r'^\d+,\d+,\d+,\d+$', val):
-            parser.error('Thresholds must be of the format "PW,PC,GW,GC".')
+            parser.error('Latency thresholds must be of the format "PW,PC,GW,GC".')
+        val = getattr(options, 's%s' % optname, None)
+        if val is not None and not re.match(r'^\d+,\d+$', val):
+            parser.error('Sibling thresholds must be of the format "W,C".')
+        val = getattr(options, 'o%s' % optname, None)
+        if val is not None and not re.match(r'^\d+,\d+$', val):
+            parser.error('Object size thresholds must be of the format "W,C".')
     if options.tnodes and not re.match(r'^\d+,\d+$', options.tnodes):
         parser.error('Connected node threshold must be of the format "W,C".')
 
@@ -108,7 +144,7 @@ def main(args):
         return critical(str(e))
 
     crit, warn, ok = [], [], []
-    def check(metric, warning, critical):
+    def check_ms(metric, warning, critical):
         if metric not in obj:
             crit.append('%s not found in Riak stats output' % metric)
             return
@@ -121,13 +157,33 @@ def main(args):
             ok.append('%s: %dms' % (metric, val_ms))
 
     for ttype in types:
-        optname, metricname = ttype
-        val = getattr(options, optname, None)
+        val = getattr(options, 't%s' % ttype, None)
         if val is None:
             continue
         pw, pc, gw, gc = [int(x) for x in val.split(',', 4)]
-        check('node_get_fsm_time_%s' % metricname, gw, gc)
-        check('node_put_fsm_time_%s' % metricname, pw, pc)
+        check_ms('node_get_fsm_time_%s' % ttype, gw, gc)
+        check_ms('node_put_fsm_time_%s' % ttype, pw, pc)
+
+    def check(metric, warning, critical):
+        if metric not in obj:
+            crit.append('%s not found in Riak stats output' % metric)
+            return
+        val = int(obj[metric])
+        if val > critical:
+            crit.append('%s: %d (>%d)' % (metric, val, critical))
+        elif val > warning:
+            warn.append('%s: %d (>%d)' % (metric, val, warning))
+        else:
+            ok.append('%s: %d' % (metric, val))
+
+    for ptuple in (('o', 'objsize'), ('s', 'siblings')):
+        prefix, stat = ptuple
+        for ttype in types:
+            val = getattr(options, '%s%s' % (prefix, ttype), None)
+            if val is None:
+                continue
+            w, c = [int(x) for x in val.split(',', 2)]
+            check('node_get_fsm_%s_%s' % (stat, ttype), w, c)
 
     val = getattr(options, 'tnodes', None)
     if val is not None:
