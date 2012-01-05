@@ -2,9 +2,6 @@
 
 '''check_riak.py -- a nagios plugin for Riak
 
-This script originally from Mark's Nagios Plugins:
-    https://github.com/xb95/nagios-plugins
-
 Usage of this script is complicated by how many things you could
 possibly be checking. In short, Riak gives you latencies on get and put
 requests, sliced over the last 60 seconds in various ways.
@@ -55,6 +52,9 @@ at. These values must be exceeded (the current connected node count must
 fall below them) before they fire. Therefore, if you have 5 nodes in
 your cluster and you want to warn if you lose any, set W to 5. "Warn if
 this goes below 5."
+
+This script originally from Mark's Nagios Plugins:
+    https://github.com/xb95/nagios-plugins
 
 Copyright (c) 2011 by Bump Technologies, Inc, and authors and
 contributors. Please see the above linked repository for licensing

@@ -6,9 +6,10 @@ nagios-plugins
 DESCRIPTION
 -----------
 This repository contains various Nagios plugins that I've written over
-time. These are all available under the same license (see the LICENSE
-file). They cover a range of functions and you probably won't need all
-of them, but hopefully some of them will be useful.
+time or found useful and updated. These are all available under the same
+license (see the LICENSE file). They cover a range of functions and you
+probably won't need all of them, but hopefully some of them will be
+useful.
 
 If it turns out that you do like and use these, please drop me an email
 at mark@qq.is and just let me know. It's purely voluntary but it's
@@ -27,3 +28,7 @@ Most of these have been written while woking for StumbleUpon and
 Bump Technologies, two great companies that both support open source
 development and have been kind enough to allow me to release these
 tools.
+
+Other of the scripts in here have been collected from the Internet.
+Attribution has been maintained where possible, and these scripts may
+not be licensed under the same license as the ones I've written.
