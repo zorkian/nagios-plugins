@@ -69,9 +69,9 @@ def main(argv):
             help='Aggregation method: avg, min, sum (default), max.')
     parser.add_option('-x', '--method', dest='comparator', default='gt',
             metavar='METHOD', help='Comparison method for -w/-c: gt, ge, lt, le, eq, ne.')
-    parser.add_option('-w', '--warning', dest='warning', type='int', metavar='THRESHOLD',
+    parser.add_option('-w', '--warning', dest='warning', type='float', metavar='THRESHOLD',
             help='Threshold for warning.  Uses the comparison method.')
-    parser.add_option('-c', '--critical', dest='critical', type='int', metavar='THRESHOLD',
+    parser.add_option('-c', '--critical', dest='critical', type='float', metavar='THRESHOLD',
             help='Threshold for critical.  Uses the comparison method.')
     parser.add_option('-v', '--verbose', dest='verbose', default=False,
             action='store_true', help='Be more verbose.')
