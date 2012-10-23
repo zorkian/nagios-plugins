@@ -30,7 +30,7 @@ if ($ARGV[0] eq '--clear') {
     exit 0;
 }
 
-my $state = [ 0, 'Syslog clear' ];
+my $state = [ 0, 'OK: Syslog clear' ];
 open LOG, "</var/log/syslog";
 foreach my $line (<LOG>) {
     my $propose;
