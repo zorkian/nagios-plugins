@@ -57,6 +57,8 @@ def main(argv):
             help='Metric to query.')
     parser.add_option('-r', '--rate', dest='rate', default=False, action='store_true',
             help='Parse metric as a rate value.')
+    parser.add_option('-L', '--delta', dest='delta', default=False, action='store_true',
+            help='Use delta mode (see docs)')
     parser.add_option('-t', '--tag', dest='tags', action='append', default=[],
             metavar='TAG', help='Tags to filter the metric on.')
     parser.add_option('-d', '--duration', dest='duration', type='int', default=600,
@@ -118,8 +120,14 @@ def main(argv):
         parser.error('--bucket-size must be at least 60 seconds')
     elif options.bucket_size > 0 and options.buckets_ago < 1:
         parser.error('--buckets-ago must be 1 or more')
-    options.percent_over /= 100.0  # Convert to range 0-1
+    elif options.delta and options.rate:
+        parser.error('--delta must not be combined with --rate')
+    elif options.delta and options.percent_over > 0:
+        parser.error('--delta must not be combined with --percent-over')
+    elif options.delta and options.buckets_ago > 0:
+        parser.error('--delta must not be combined with --buckets-ago')
 
+    options.percent_over /= 100.0  # Convert to range 0-1
     if not options.critical:
         options.critical = options.warning
     elif not options.warning:
@@ -290,6 +298,8 @@ def recent_check(options, comparator):
     bad = None     # Bad data point
     npoints = 0    # How many values have we seen?
     nbad = 0       # How many bad values have we seen?
+    oldest = [None, None] # Closest value to our duration (for delta)
+    newest = [None, None] # Newest data point (past ignore_recent)
     points = {'critical': [], 'warning': [], 'okay': []}
     for datapoint in datapoints:
         ts, val = datapoint
@@ -297,7 +307,14 @@ def recent_check(options, comparator):
         delta = now - ts
         if delta > options.duration or delta <= options.ignore_recent:
             continue  # Ignore data points outside of our range.
+        if oldest[0] is None or delta > oldest[0]:
+            oldest = [delta, val]
+        if newest[0] is None or delta < newest[0]:
+            newest = [delta, val]
         npoints += 1
+
+        if options.delta:
+            continue
 
         state = 'okay'
         if comparator(val, options.critical):
@@ -312,14 +329,44 @@ def recent_check(options, comparator):
                or comparator(val, bad[1]))):  # Worst value.
             bad = datapoint
 
-    if options.verbose and len(datapoints) != npoints:
-        print ('ignored %d/%d data points for being more than %ds old or too new'
-               % (len(datapoints) - npoints, len(datapoints), options.duration))
+    if options.verbose:
+        if len(datapoints) != npoints:
+            print ('ignored %d/%d data points for being more than %ds old or too new'
+                   % (len(datapoints) - npoints, len(datapoints), options.duration))
+        if bad is not None:
+            print 'worst data point value=%s at ts=%s' % (bad[1], bad[0])
+        if options.delta:
+            print 'delta: oldest = [%d, %d], newest = [%d, %d]' % (
+                oldest[0], oldest[1], newest[0], newest[1])
+
     if not npoints:
         return no_data_point()
-    if bad is not None:
-        if options.verbose:
-            print 'worst data point value=%s at ts=%s' % (bad[1], bad[0])
+    tmetric = metric.replace('|',':')
+
+    # Delta comparisons happen first. We do not explicitly ignore negative
+    # values because the user might want to compare against those to, f.ex.,
+    # look for restarts.
+    if options.delta:
+        if newest[0] is None or oldest[0] is None:
+            if options.no_result_ok:
+                print 'OK: not enough data to compute the delta'
+                return 0
+            else:
+                print 'CRITICAL: not enough data to compute the delta'
+                return 2
+        delta = newest[1] - oldest[1]
+        if comparator(delta, options.critical):
+            print 'CRITICAL: %s delta is %s %s: currently %d over %d seconds' % (
+                tmetric, options.comparator, options.critical, delta, options.duration)
+            return 2
+        elif comparator(delta, options.warning):
+            print 'WARNING: %s delta is %s %s: currently %d over %d seconds' % (
+                tmetric, options.comparator, options.warning, delta, options.duration)
+            return 1
+        else:
+            print 'OK: %s delta is currently %d over %d seconds' % (tmetric,
+                delta, options.duration)
+            return 0
 
     # Determine return value.  We have to add the number of critical points
     # to the warning points because the criticals may not cross the
@@ -335,7 +382,6 @@ def recent_check(options, comparator):
 
     # In nrpe, pipe character is something special, but it's used in tag
     # searches.  Translate it to something else for the purposes of output.
-    tmetric = metric.replace('|',':')
     if not rv:
         print ('OK: %s: %d values OK, last=%r' % (tmetric, npoints, val))
     else:
