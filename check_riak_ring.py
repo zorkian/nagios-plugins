@@ -121,7 +121,7 @@ def parse_ownership(val):
         if '{' not in k:
             continue
         host, ct = k.split('{')[1].split(',')
-        host = host.split('@')[1]
+        host = host.split('@')[1].strip("'")
         ret[host] = ct
     return ret
 
