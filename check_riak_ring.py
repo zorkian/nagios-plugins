@@ -49,11 +49,13 @@ def main(args):
                       help='Do not alert on down nodes.')
     parser.add_option('-v', dest='verbose', action='store_true',
                       help='Print extra data in the output.')
+    parser.add_option('-t', '--timeout', dest='timeout', type='int', default=3,
+                      help='Connection timeout.')
     (options, args) = parser.parse_args()
 
     # Ensure we have hosts
     if not args:
-        print 'Usage: ./check_riak_ring.py [-v] [-p 8098] [--down-ok] <hosta> [hostb hostc...]'
+        print 'Usage: ./check_riak_ring.py [-v] [-p 8098] [-t 3] [--down-ok] <hosta> [hostb hostc...]'
         sys.exit(1)
 
     # Gather ring states by iterating over the list of nodes we were told to
@@ -63,7 +65,7 @@ def main(args):
     while len(hosts) > 0:
         host = hosts.pop(0)
         try:
-            req = urlopen("http://%s:%d/stats" % (host, options.port))
+            req = urlopen("http://%s:%d/stats" % (host, options.port), timeout=options.timeout)
             obj = loads(req.read())
         except (URLError, ValueError) as e:
             if options.down_ok:
