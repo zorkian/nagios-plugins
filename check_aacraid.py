@@ -80,7 +80,7 @@ def main(argv):
         if cdefunct:
             if int(cdefunct.group(1)) > 0:
                 check_status = 2
-                result += "Defunct drives " + cdefunct_group(1) + ","
+                result += "Defunct drives " + cdefunct.group(1) + ","
             continue
 
         cdegraded = c_degraded_re.match(line)
@@ -119,10 +119,10 @@ def main(argv):
         bcapacity = b_capacity_re.match(line)
         if bcapacity:
             result += "Battery Capacity " + bcapacity.group(1) + "%,"
-            if bcapacity.group(1) < 50:
+            if int(bcapacity.group(1)) < 50:
                 if check_status < 2:
                     check_status = 1
-            if bcapacity.group(1) < 25:
+            if int(bcapacity.group(1)) < 25:
                 check_status = 2
             continue
 
